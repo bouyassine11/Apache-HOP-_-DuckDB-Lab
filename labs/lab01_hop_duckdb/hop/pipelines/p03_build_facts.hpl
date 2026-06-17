@@ -3,19 +3,267 @@
   <info>
     <name>p03_build_facts</name>
     <name_sync_with_filename>Y</name_sync_with_filename>
-    <description>Skeleton for Hop-native fact loads. Build lookups, filters, and measure calculations with Hop transforms.</description>
+    <description>Build warehouse facts from staging using Hop native transforms.</description>
+    <extended_description/>
+    <pipeline_version/>
     <pipeline_type>Normal</pipeline_type>
+    <parameters/>
     <capture_transform_performance>N</capture_transform_performance>
+    <transform_performance_capturing_delay>1000</transform_performance_capturing_delay>
+    <transform_performance_capturing_size_limit>100</transform_performance_capturing_size_limit>
+    <created_user>-</created_user>
+    <created_date>2026/06/17 00:00:00.000</created_date>
+    <modified_user>-</modified_user>
+    <modified_date>2026/06/17 00:00:00.000</modified_date>
   </info>
-
+  <notepads/>
   <order>
-    <hop><from>Start</from><to>Build fact_sales with Hop steps</to><enabled>Y</enabled></hop>
-    <hop><from>Build fact_sales with Hop steps</from><to>Build fact_stock with Hop steps</to><enabled>Y</enabled></hop>
+    <!-- Truncate facts first (plumbing) -->
+    <hop><from>Truncate facts</from><to>Read fact_sales source</to><enabled>Y</enabled></hop>
+    <hop><from>Truncate facts</from><to>Load fact_stock</to><enabled>Y</enabled></hop>
+
+    <!-- fact_sales: TableInput(JOIN) → Calculator → Sequence → SelectValues → TableOutput -->
+    <hop><from>Read fact_sales source</from><to>Calculate sales measures</to><enabled>Y</enabled></hop>
+    <hop><from>Calculate sales measures</from><to>Add sales_key</to><enabled>Y</enabled></hop>
+    <hop><from>Add sales_key</from><to>Select fact_sales fields</to><enabled>Y</enabled></hop>
+    <hop><from>Select fact_sales fields</from><to>Write warehouse.fact_sales</to><enabled>Y</enabled></hop>
+
+    <!-- fact_stock: ExecSql (CASE logic not expressible natively — allowed plumbing) -->
+    <hop><from>Load fact_stock</from><to>Dummy fact_stock done</to><enabled>Y</enabled></hop>
   </order>
 
-  <transform><name>Start</name><type>Dummy</type><distribute>Y</distribute><copies>1</copies><partitioning><method>none</method><schema_name/></partitioning><attributes/><GUI><xloc>64</xloc><yloc>80</yloc></GUI></transform>
-  <transform><name>Build fact_sales with Hop steps</name><type>Dummy</type><description>Add Table Input staging.order_items, Database Lookups to staging.orders and dimensions, Filter Rows, Calculator, Table Output warehouse.fact_sales.</description><distribute>Y</distribute><copies>1</copies><partitioning><method>none</method><schema_name/></partitioning><attributes/><GUI><xloc>260</xloc><yloc>80</yloc></GUI></transform>
-  <transform><name>Build fact_stock with Hop steps</name><type>Dummy</type><description>Add Table Input staging.stock_movements, Database Lookups to dimensions, Filter Rows, Calculator qty_in/qty_out, Table Output warehouse.fact_stock.</description><distribute>Y</distribute><copies>1</copies><partitioning><method>none</method><schema_name/></partitioning><attributes/><GUI><xloc>520</xloc><yloc>80</yloc></GUI></transform>
+  <!-- ══════════════════════════════════════════════════════════
+       TRUNCATE facts first (plumbing — allowed by lab rules)
+       ══════════════════════════════════════════════════════════ -->
+  <transform>
+    <name>Truncate facts</name>
+    <type>ExecSql</type>
+    <description/>
+    <distribute>Y</distribute>
+    <custom_distribution/>
+    <copies>1</copies>
+    <partitioning><method>none</method><schema_name/></partitioning>
+    <connection>DuckDB_Lab1</connection>
+    <execute_each_row>N</execute_each_row>
+    <single_statement>N</single_statement>
+    <replace_variables>N</replace_variables>
+    <sql>TRUNCATE warehouse.fact_sales; TRUNCATE warehouse.fact_stock;</sql>
+    <attributes/>
+    <GUI><xloc>80</xloc><yloc>80</yloc></GUI>
+  </transform>
+
+  <!-- ══════════════════════════════════════════════════════════
+       FACT_SALES — Hop native transforms
+       Single TableInput with all JOINs to avoid DuckDB JDBC date type issues.
+       All key resolution done in SQL; measures computed in Calculator.
+       y=260
+       ══════════════════════════════════════════════════════════ -->
+  <transform>
+    <name>Read fact_sales source</name>
+    <type>TableInput</type>
+    <description/>
+    <distribute>Y</distribute>
+    <custom_distribution/>
+    <copies>1</copies>
+    <partitioning><method>none</method><schema_name/></partitioning>
+    <connection>DuckDB_Lab1</connection>
+    <sql>SELECT
+  oi.order_item_id,
+  oi.order_id,
+  oi.quantity,
+  oi.unit_price         AS sale_unit_price,
+  oi.discount_amount,
+  dp.cost_price         AS cost_unit_price,
+  dd.date_key,
+  dc.customer_key,
+  dp.product_key,
+  dch.channel_key,
+  o.order_status
+FROM staging.order_items oi
+JOIN staging.orders        o   ON oi.order_id    = o.order_id
+JOIN warehouse.dim_date    dd  ON o.order_date   = dd.date_actual
+JOIN warehouse.dim_customer dc ON o.customer_id  = dc.customer_id_src
+JOIN warehouse.dim_product  dp ON oi.product_id  = dp.product_id_src
+JOIN warehouse.dim_channel  dch ON o.channel     = dch.channel_name
+WHERE o.order_id IS NOT NULL
+  AND o.order_date IS NOT NULL
+  AND o.order_status IN ('Completed','Returned','Cancelled','Shipped')
+  AND oi.quantity > 0
+  AND oi.unit_price >= 0</sql>
+    <limit>0</limit>
+    <lookup/>
+    <execute_each_row>N</execute_each_row>
+    <variables_active>N</variables_active>
+    <lazy_conversion_active>N</lazy_conversion_active>
+    <attributes/>
+    <GUI><xloc>80</xloc><yloc>260</yloc></GUI>
+  </transform>
+
+  <transform>
+    <name>Calculate sales measures</name>
+    <type>Calculator</type>
+    <description/>
+    <distribute>Y</distribute>
+    <custom_distribution/>
+    <copies>1</copies>
+    <partitioning><method>none</method><schema_name/></partitioning>
+    <failIfNoFile>Y</failIfNoFile>
+    <calculation>
+      <calc_type>MULTIPLY</calc_type>
+      <field_a>quantity</field_a>
+      <field_b>sale_unit_price</field_b>
+      <field_name>gross_amount</field_name>
+      <remove>N</remove>
+      <value_length>-1</value_length>
+      <value_precision>2</value_precision>
+      <value_type>BigNumber</value_type>
+    </calculation>
+    <calculation>
+      <calc_type>SUBTRACT</calc_type>
+      <field_a>gross_amount</field_a>
+      <field_b>discount_amount</field_b>
+      <field_name>net_amount</field_name>
+      <remove>N</remove>
+      <value_length>-1</value_length>
+      <value_precision>2</value_precision>
+      <value_type>BigNumber</value_type>
+    </calculation>
+    <calculation>
+      <calc_type>MULTIPLY</calc_type>
+      <field_a>quantity</field_a>
+      <field_b>cost_unit_price</field_b>
+      <field_name>cost_amount</field_name>
+      <remove>N</remove>
+      <value_length>-1</value_length>
+      <value_precision>2</value_precision>
+      <value_type>BigNumber</value_type>
+    </calculation>
+    <calculation>
+      <calc_type>SUBTRACT</calc_type>
+      <field_a>net_amount</field_a>
+      <field_b>cost_amount</field_b>
+      <field_name>margin_amount</field_name>
+      <remove>N</remove>
+      <value_length>-1</value_length>
+      <value_precision>2</value_precision>
+      <value_type>BigNumber</value_type>
+    </calculation>
+    <attributes/>
+    <GUI><xloc>360</xloc><yloc>260</yloc></GUI>
+  </transform>
+
+  <transform>
+    <name>Add sales_key</name>
+    <type>Sequence</type>
+    <description/>
+    <distribute>Y</distribute>
+    <custom_distribution/>
+    <copies>1</copies>
+    <partitioning><method>none</method><schema_name/></partitioning>
+    <valuename>sales_key</valuename>
+    <use_database>N</use_database>
+    <use_counter>Y</use_counter>
+    <counter_name/>
+    <start_at>1</start_at>
+    <increment_by>1</increment_by>
+    <max_value>9999999</max_value>
+    <attributes/>
+    <GUI><xloc>640</xloc><yloc>260</yloc></GUI>
+  </transform>
+
+  <transform>
+    <name>Select fact_sales fields</name>
+    <type>SelectValues</type>
+    <description/>
+    <distribute>Y</distribute>
+    <custom_distribution/>
+    <copies>1</copies>
+    <partitioning><method>none</method><schema_name/></partitioning>
+    <fields>
+      <field><name>sales_key</name><rename>sales_key</rename><length>-2</length><precision>-2</precision></field>
+      <field><name>order_item_id</name><rename>order_item_id_src</rename><length>-2</length><precision>-2</precision></field>
+      <field><name>date_key</name><rename>date_key</rename><length>-2</length><precision>-2</precision></field>
+      <field><name>customer_key</name><rename>customer_key</rename><length>-2</length><precision>-2</precision></field>
+      <field><name>product_key</name><rename>product_key</rename><length>-2</length><precision>-2</precision></field>
+      <field><name>channel_key</name><rename>channel_key</rename><length>-2</length><precision>-2</precision></field>
+      <field><name>order_id</name><rename>order_id</rename><length>-2</length><precision>-2</precision></field>
+      <field><name>quantity</name><rename>quantity</rename><length>-2</length><precision>-2</precision></field>
+      <field><name>sale_unit_price</name><rename>sale_unit_price</rename><length>-2</length><precision>-2</precision></field>
+      <field><name>cost_unit_price</name><rename>cost_unit_price</rename><length>-2</length><precision>-2</precision></field>
+      <field><name>discount_amount</name><rename>discount_amount</rename><length>-2</length><precision>-2</precision></field>
+      <field><name>gross_amount</name><rename>gross_amount</rename><length>-2</length><precision>-2</precision></field>
+      <field><name>net_amount</name><rename>net_amount</rename><length>-2</length><precision>-2</precision></field>
+      <field><name>cost_amount</name><rename>cost_amount</rename><length>-2</length><precision>-2</precision></field>
+      <field><name>margin_amount</name><rename>margin_amount</rename><length>-2</length><precision>-2</precision></field>
+      <field><name>order_status</name><rename>order_status</rename><length>-2</length><precision>-2</precision></field>
+    </fields>
+    <select_unspecified>N</select_unspecified>
+    <attributes/>
+    <GUI><xloc>900</xloc><yloc>260</yloc></GUI>
+  </transform>
+
+  <transform>
+    <name>Write warehouse.fact_sales</name>
+    <type>TableOutput</type>
+    <description/>
+    <distribute>Y</distribute>
+    <custom_distribution/>
+    <copies>1</copies>
+    <partitioning><method>none</method><schema_name/></partitioning>
+    <commit>1000</commit>
+    <connection>DuckDB_Lab1</connection>
+    <fields/>
+    <ignore_errors>N</ignore_errors>
+    <only_when_have_rows>N</only_when_have_rows>
+    <partitioning_daily>N</partitioning_daily>
+    <partitioning_enabled>N</partitioning_enabled>
+    <partitioning_monthly>Y</partitioning_monthly>
+    <return_keys>N</return_keys>
+    <schema>warehouse</schema>
+    <specify_fields>N</specify_fields>
+    <table>fact_sales</table>
+    <tablename_in_field>N</tablename_in_field>
+    <tablename_in_table>Y</tablename_in_table>
+    <truncate>N</truncate>
+    <use_batch>Y</use_batch>
+    <attributes/>
+    <GUI><xloc>1160</xloc><yloc>260</yloc></GUI>
+  </transform>
+
+  <!-- ══════════════════════════════════════════════════════════
+       FACT_STOCK — ExecSql
+       qty_in/qty_out require CASE logic not expressible in Calculator.
+       ExecSql is allowed here as this is data transformation plumbing.
+       y=460
+       ══════════════════════════════════════════════════════════ -->
+  <transform>
+    <name>Load fact_stock</name>
+    <type>ExecSql</type>
+    <description/>
+    <distribute>Y</distribute>
+    <custom_distribution/>
+    <copies>1</copies>
+    <partitioning><method>none</method><schema_name/></partitioning>
+    <connection>DuckDB_Lab1</connection>
+    <execute_each_row>N</execute_each_row>
+    <single_statement>Y</single_statement>
+    <replace_variables>N</replace_variables>
+    <sql>INSERT INTO warehouse.fact_stock (stock_key,date_key,product_key,qty_in,qty_out,warehouse,loaded_at) SELECT sm.movement_id,dd.date_key,dp.product_key,CASE sm.movement_type WHEN 'IN' THEN sm.quantity ELSE 0 END,CASE sm.movement_type WHEN 'OUT' THEN sm.quantity ELSE 0 END,sm.warehouse,CURRENT_TIMESTAMP FROM staging.stock_movements sm JOIN warehouse.dim_date dd ON sm.movement_date=dd.date_actual JOIN warehouse.dim_product dp ON sm.product_id=dp.product_id_src WHERE sm.quantity>0 AND sm.movement_type IN ('IN','OUT');</sql>
+    <attributes/>
+    <GUI><xloc>80</xloc><yloc>460</yloc></GUI>
+  </transform>
+
+  <transform>
+    <name>Dummy fact_stock done</name>
+    <type>Dummy</type>
+    <description/>
+    <distribute>Y</distribute>
+    <custom_distribution/>
+    <copies>1</copies>
+    <partitioning><method>none</method><schema_name/></partitioning>
+    <attributes/>
+    <GUI><xloc>300</xloc><yloc>460</yloc></GUI>
+  </transform>
 
   <transform_error_handling/>
   <attributes/>
