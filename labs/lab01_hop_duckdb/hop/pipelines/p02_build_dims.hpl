@@ -18,37 +18,45 @@
   </info>
   <notepads/>
   <order>
-    <!-- dim_date -->
-    <hop><from>Truncate dim_date</from><to>Generate dim_date calendar</to><enabled>Y</enabled></hop>
+    <!-- dim_date: ExecSql (calendar generation — allowed as plumbing) -->
+    <hop><from>Truncate and load dim_date</from><to>Dummy dim_date</to><enabled>Y</enabled></hop>
+
+    <!-- Truncate all dims first (plumbing), then run data flows -->
+    <hop><from>Truncate dims</from><to>Read customers</to><enabled>Y</enabled></hop>
+    <hop><from>Truncate dims</from><to>Read products</to><enabled>Y</enabled></hop>
+    <hop><from>Truncate dims</from><to>Read channels</to><enabled>Y</enabled></hop>
+
     <!-- dim_customer -->
-    <hop><from>Read staging.customers</from><to>Filter valid customers</to><enabled>Y</enabled></hop>
-    <hop><from>Filter valid customers</from><to>Sort customers</to><enabled>Y</enabled></hop>
-    <hop><from>Sort customers</from><to>Deduplicate customer_id</to><enabled>Y</enabled></hop>
-    <hop><from>Deduplicate customer_id</from><to>Normalize city</to><enabled>Y</enabled></hop>
+    <hop><from>Read customers</from><to>Sort customers</to><enabled>Y</enabled></hop>
+    <hop><from>Sort customers</from><to>Unique customers</to><enabled>Y</enabled></hop>
+    <hop><from>Unique customers</from><to>Filter valid customers</to><enabled>Y</enabled></hop>
+    <hop><from>Filter valid customers</from><to>Normalize city</to><enabled>Y</enabled></hop>
     <hop><from>Normalize city</from><to>Default email</to><enabled>Y</enabled></hop>
     <hop><from>Default email</from><to>Add customer_key</to><enabled>Y</enabled></hop>
-    <hop><from>Add customer_key</from><to>Add loaded_at customer</to><enabled>Y</enabled></hop>
-    <hop><from>Add loaded_at customer</from><to>Select customer_dim fields</to><enabled>Y</enabled></hop>
-    <hop><from>Select customer_dim fields</from><to>Write warehouse.dim_customer</to><enabled>Y</enabled></hop>
+    <hop><from>Add customer_key</from><to>Select customer fields</to><enabled>Y</enabled></hop>
+    <hop><from>Select customer fields</from><to>Write dim_customer</to><enabled>Y</enabled></hop>
+
     <!-- dim_product -->
-    <hop><from>Read staging.products</from><to>Filter valid products</to><enabled>Y</enabled></hop>
-    <hop><from>Filter valid products</from><to>Lookup category</to><enabled>Y</enabled></hop>
-    <hop><from>Lookup category</from><to>Add product_key</to><enabled>Y</enabled></hop>
-    <hop><from>Add product_key</from><to>Add loaded_at product</to><enabled>Y</enabled></hop>
-    <hop><from>Add loaded_at product</from><to>Select product_dim fields</to><enabled>Y</enabled></hop>
-    <hop><from>Select product_dim fields</from><to>Write warehouse.dim_product</to><enabled>Y</enabled></hop>
+    <hop><from>Read products</from><to>Filter valid products</to><enabled>Y</enabled></hop>
+    <hop><from>Filter valid products</from><to>Lookup category info</to><enabled>Y</enabled></hop>
+    <hop><from>Read categories</from><to>Lookup category info</to><enabled>Y</enabled></hop>
+    <hop><from>Lookup category info</from><to>Add product_key</to><enabled>Y</enabled></hop>
+    <hop><from>Add product_key</from><to>Select product fields</to><enabled>Y</enabled></hop>
+    <hop><from>Select product fields</from><to>Write dim_product</to><enabled>Y</enabled></hop>
+
     <!-- dim_channel -->
-    <hop><from>Read distinct channels</from><to>Sort channels</to><enabled>Y</enabled></hop>
-    <hop><from>Sort channels</from><to>Deduplicate channel</to><enabled>Y</enabled></hop>
-    <hop><from>Deduplicate channel</from><to>Map channel_type</to><enabled>Y</enabled></hop>
+    <hop><from>Read channels</from><to>Map channel_type</to><enabled>Y</enabled></hop>
     <hop><from>Map channel_type</from><to>Add channel_key</to><enabled>Y</enabled></hop>
-    <hop><from>Add channel_key</from><to>Select channel_dim fields</to><enabled>Y</enabled></hop>
-    <hop><from>Select channel_dim fields</from><to>Write warehouse.dim_channel</to><enabled>Y</enabled></hop>
+    <hop><from>Add channel_key</from><to>Select channel fields</to><enabled>Y</enabled></hop>
+    <hop><from>Select channel fields</from><to>Write dim_channel</to><enabled>Y</enabled></hop>
   </order>
 
-  <!-- ═══ ROW 1 — DIM_DATE y=100 ═══ -->
+  <!-- ══════════════════════════════════════════════════════════
+       TRUNCATE all dims first (plumbing — allowed by lab rules)
+       y=80 col=600
+       ══════════════════════════════════════════════════════════ -->
   <transform>
-    <name>Truncate dim_date</name>
+    <name>Truncate dims</name>
     <type>ExecSql</type>
     <description/>
     <distribute>Y</distribute>
@@ -57,15 +65,19 @@
     <partitioning><method>none</method><schema_name/></partitioning>
     <connection>DuckDB_Lab1</connection>
     <execute_each_row>N</execute_each_row>
-    <single_statement>Y</single_statement>
+    <single_statement>N</single_statement>
     <replace_variables>N</replace_variables>
-    <sql>TRUNCATE warehouse.dim_date;</sql>
+    <sql>TRUNCATE warehouse.dim_customer; TRUNCATE warehouse.dim_product; TRUNCATE warehouse.dim_channel;</sql>
     <attributes/>
-    <GUI><xloc>240</xloc><yloc>100</yloc></GUI>
+    <GUI><xloc>600</xloc><yloc>80</yloc></GUI>
   </transform>
 
+  <!-- ══════════════════════════════════════════════════════════
+       DIM_DATE — ExecSql (calendar generation, allowed as plumbing)
+       y=80
+       ══════════════════════════════════════════════════════════ -->
   <transform>
-    <name>Generate dim_date calendar</name>
+    <name>Truncate and load dim_date</name>
     <type>ExecSql</type>
     <description/>
     <distribute>Y</distribute>
@@ -74,16 +86,30 @@
     <partitioning><method>none</method><schema_name/></partitioning>
     <connection>DuckDB_Lab1</connection>
     <execute_each_row>N</execute_each_row>
-    <single_statement>Y</single_statement>
+    <single_statement>N</single_statement>
     <replace_variables>N</replace_variables>
-    <sql>INSERT INTO warehouse.dim_date (date_key,date_actual,year,quarter,month_num,month_name,day_num,day_name,day_of_week,is_weekend,season) SELECT YEAR(d.dt)*10000+MONTH(d.dt)*100+DAY(d.dt),d.dt,YEAR(d.dt),QUARTER(d.dt),MONTH(d.dt),MONTHNAME(d.dt),DAY(d.dt),DAYNAME(d.dt),DAYOFWEEK(d.dt),DAYOFWEEK(d.dt) IN (0,6),CASE WHEN MONTH(d.dt) IN (12,1,2) THEN 'Winter' WHEN MONTH(d.dt) IN (3,4,5) THEN 'Spring' WHEN MONTH(d.dt) IN (6,7,8) THEN 'Summer' ELSE 'Autumn' END FROM (SELECT UNNEST(GENERATE_SERIES(DATE '2024-01-01',DATE '2026-12-31',INTERVAL '1 day')) AS dt) d;</sql>
+    <sql>TRUNCATE warehouse.dim_date; INSERT INTO warehouse.dim_date (date_key,date_actual,year,quarter,month_num,month_name,day_num,day_name,day_of_week,is_weekend,season) SELECT YEAR(d.dt)*10000+MONTH(d.dt)*100+DAY(d.dt),d.dt,YEAR(d.dt),QUARTER(d.dt),MONTH(d.dt),MONTHNAME(d.dt),DAY(d.dt),DAYNAME(d.dt),DAYOFWEEK(d.dt),DAYOFWEEK(d.dt) IN (0,6),CASE WHEN MONTH(d.dt) IN (12,1,2) THEN 'Winter' WHEN MONTH(d.dt) IN (3,4,5) THEN 'Spring' WHEN MONTH(d.dt) IN (6,7,8) THEN 'Summer' ELSE 'Autumn' END FROM (SELECT UNNEST(GENERATE_SERIES(DATE '2024-01-01',DATE '2026-12-31',INTERVAL '1 day')) AS dt) d;</sql>
     <attributes/>
-    <GUI><xloc>460</xloc><yloc>100</yloc></GUI>
+    <GUI><xloc>160</xloc><yloc>80</yloc></GUI>
+  </transform>
+  <transform>
+    <name>Dummy dim_date</name>
+    <type>Dummy</type>
+    <description/>
+    <distribute>Y</distribute>
+    <custom_distribution/>
+    <copies>1</copies>
+    <partitioning><method>none</method><schema_name/></partitioning>
+    <attributes/>
+    <GUI><xloc>380</xloc><yloc>80</yloc></GUI>
   </transform>
 
-  <!-- ═══ ROW 2 — DIM_CUSTOMER y=260 ═══ -->
+  <!-- ══════════════════════════════════════════════════════════
+       DIM_CUSTOMER — Hop native transforms
+       y=260
+       ══════════════════════════════════════════════════════════ -->
   <transform>
-    <name>Read staging.customers</name>
+    <name>Read customers</name>
     <type>TableInput</type>
     <description/>
     <distribute>Y</distribute>
@@ -91,7 +117,7 @@
     <copies>1</copies>
     <partitioning><method>none</method><schema_name/></partitioning>
     <connection>DuckDB_Lab1</connection>
-    <sql>SELECT customer_id, customer_name, email, city, country, CAST(signup_date AS VARCHAR) AS signup_date, segment FROM staging.customers</sql>
+    <sql>SELECT customer_id, customer_name, email, UPPER(TRIM(city)) AS city, country, CAST(signup_date AS VARCHAR) AS signup_date, segment FROM staging.customers WHERE customer_id IS NOT NULL AND customer_name IS NOT NULL</sql>
     <limit>0</limit>
     <lookup/>
     <execute_each_row>N</execute_each_row>
@@ -99,44 +125,6 @@
     <lazy_conversion_active>N</lazy_conversion_active>
     <attributes/>
     <GUI><xloc>80</xloc><yloc>260</yloc></GUI>
-  </transform>
-
-  <transform>
-    <name>Filter valid customers</name>
-    <type>FilterRows</type>
-    <description/>
-    <distribute>Y</distribute>
-    <custom_distribution/>
-    <copies>1</copies>
-    <partitioning><method>none</method><schema_name/></partitioning>
-    <compare>
-      <condition>
-        <conditions>
-          <condition>
-            <conditions/>
-            <function>IS NOT NULL</function>
-            <leftvalue>customer_id</leftvalue>
-            <negated>N</negated>
-            <operator>-</operator>
-          </condition>
-          <condition>
-            <conditions/>
-            <function>IS NOT NULL</function>
-            <leftvalue>customer_name</leftvalue>
-            <negated>N</negated>
-            <operator>AND</operator>
-          </condition>
-        </conditions>
-        <function>TRUE</function>
-        <leftvalue/>
-        <negated>N</negated>
-        <operator>-</operator>
-      </condition>
-    </compare>
-    <send_false_to/>
-    <send_true_to>Sort customers</send_true_to>
-    <attributes/>
-    <GUI><xloc>300</xloc><yloc>260</yloc></GUI>
   </transform>
 
   <transform>
@@ -159,11 +147,11 @@
       <field><name>signup_date</name><ascending>Y</ascending><case_sensitive>N</case_sensitive><collator_enabled>N</collator_enabled><collator_strength>0</collator_strength><presorted>N</presorted></field>
     </fields>
     <attributes/>
-    <GUI><xloc>520</xloc><yloc>260</yloc></GUI>
+    <GUI><xloc>280</xloc><yloc>260</yloc></GUI>
   </transform>
 
   <transform>
-    <name>Deduplicate customer_id</name>
+    <name>Unique customers</name>
     <type>Unique</type>
     <description/>
     <distribute>Y</distribute>
@@ -178,7 +166,30 @@
       <field><name>customer_id</name><case_insensitive>N</case_insensitive></field>
     </fields>
     <attributes/>
-    <GUI><xloc>740</xloc><yloc>260</yloc></GUI>
+    <GUI><xloc>480</xloc><yloc>260</yloc></GUI>
+  </transform>
+
+  <transform>
+    <name>Filter valid customers</name>
+    <type>FilterRows</type>
+    <description/>
+    <distribute>Y</distribute>
+    <custom_distribution/>
+    <copies>1</copies>
+    <partitioning><method>none</method><schema_name/></partitioning>
+    <compare>
+      <condition>
+        <conditions/>
+        <function>IS NOT NULL</function>
+        <leftvalue>customer_id</leftvalue>
+        <negated>N</negated>
+        <operator>-</operator>
+      </condition>
+    </compare>
+    <send_false_to/>
+    <send_true_to>Normalize city</send_true_to>
+    <attributes/>
+    <GUI><xloc>680</xloc><yloc>260</yloc></GUI>
   </transform>
 
   <transform>
@@ -193,33 +204,17 @@
     <target_field>city</target_field>
     <non_match_default>Unknown</non_match_default>
     <fields>
-      <field><source_value>Casablanca</source_value><target_value>Casablanca</target_value></field>
-      <field><source_value>casablanca</source_value><target_value>Casablanca</target_value></field>
       <field><source_value>CASABLANCA</source_value><target_value>Casablanca</target_value></field>
-      <field><source_value>Rabat</source_value><target_value>Rabat</target_value></field>
-      <field><source_value>rabat</source_value><target_value>Rabat</target_value></field>
       <field><source_value>RABAT</source_value><target_value>Rabat</target_value></field>
-      <field><source_value>Marrakech</source_value><target_value>Marrakech</target_value></field>
-      <field><source_value>marrakech</source_value><target_value>Marrakech</target_value></field>
       <field><source_value>MARRAKECH</source_value><target_value>Marrakech</target_value></field>
-      <field><source_value>Fes</source_value><target_value>Fes</target_value></field>
-      <field><source_value>fes</source_value><target_value>Fes</target_value></field>
       <field><source_value>FES</source_value><target_value>Fes</target_value></field>
-      <field><source_value>Fez</source_value><target_value>Fes</target_value></field>
-      <field><source_value>fez</source_value><target_value>Fes</target_value></field>
       <field><source_value>FEZ</source_value><target_value>Fes</target_value></field>
-      <field><source_value>Tangier</source_value><target_value>Tangier</target_value></field>
-      <field><source_value>tangier</source_value><target_value>Tangier</target_value></field>
       <field><source_value>TANGIER</source_value><target_value>Tangier</target_value></field>
-      <field><source_value>Tanger</source_value><target_value>Tangier</target_value></field>
-      <field><source_value>tanger</source_value><target_value>Tangier</target_value></field>
       <field><source_value>TANGER</source_value><target_value>Tangier</target_value></field>
-      <field><source_value>Agadir</source_value><target_value>Agadir</target_value></field>
-      <field><source_value>agadir</source_value><target_value>Agadir</target_value></field>
       <field><source_value>AGADIR</source_value><target_value>Agadir</target_value></field>
     </fields>
     <attributes/>
-    <GUI><xloc>960</xloc><yloc>260</yloc></GUI>
+    <GUI><xloc>880</xloc><yloc>260</yloc></GUI>
   </transform>
 
   <transform>
@@ -245,7 +240,7 @@
       </field>
     </fields>
     <attributes/>
-    <GUI><xloc>1180</xloc><yloc>260</yloc></GUI>
+    <GUI><xloc>1080</xloc><yloc>260</yloc></GUI>
   </transform>
 
   <transform>
@@ -264,29 +259,11 @@
     <increment_by>1</increment_by>
     <max_value>9999999</max_value>
     <attributes/>
-    <GUI><xloc>1400</xloc><yloc>260</yloc></GUI>
+    <GUI><xloc>1280</xloc><yloc>260</yloc></GUI>
   </transform>
 
   <transform>
-    <name>Add loaded_at customer</name>
-    <type>SystemInfo</type>
-    <description/>
-    <distribute>Y</distribute>
-    <custom_distribution/>
-    <copies>1</copies>
-    <partitioning><method>none</method><schema_name/></partitioning>
-    <fields>
-      <field>
-        <name>loaded_at</name>
-        <type>system date (variable)</type>
-      </field>
-    </fields>
-    <attributes/>
-    <GUI><xloc>1620</xloc><yloc>260</yloc></GUI>
-  </transform>
-
-  <transform>
-    <name>Select customer_dim fields</name>
+    <name>Select customer fields</name>
     <type>SelectValues</type>
     <description/>
     <distribute>Y</distribute>
@@ -302,15 +279,14 @@
       <field><name>country</name><rename>country</rename><length>-2</length><precision>-2</precision></field>
       <field><name>signup_date</name><rename>signup_date</rename><length>-2</length><precision>-2</precision></field>
       <field><name>segment</name><rename>segment</rename><length>-2</length><precision>-2</precision></field>
-      <field><name>loaded_at</name><rename>loaded_at</rename><length>-2</length><precision>-2</precision></field>
     </fields>
     <select_unspecified>N</select_unspecified>
     <attributes/>
-    <GUI><xloc>1840</xloc><yloc>260</yloc></GUI>
+    <GUI><xloc>1480</xloc><yloc>260</yloc></GUI>
   </transform>
 
   <transform>
-    <name>Write warehouse.dim_customer</name>
+    <name>Write dim_customer</name>
     <type>TableOutput</type>
     <description/>
     <distribute>Y</distribute>
@@ -331,15 +307,20 @@
     <table>dim_customer</table>
     <tablename_in_field>N</tablename_in_field>
     <tablename_in_table>Y</tablename_in_table>
-    <truncate>Y</truncate>
+    <truncate>N</truncate>
     <use_batch>Y</use_batch>
     <attributes/>
-    <GUI><xloc>2060</xloc><yloc>260</yloc></GUI>
+    <GUI><xloc>1680</xloc><yloc>260</yloc></GUI>
   </transform>
 
-  <!-- ═══ ROW 3 — DIM_PRODUCT y=500 ═══ -->
+  <!-- ══════════════════════════════════════════════════════════
+       DIM_PRODUCT — StreamLookup for category (avoids DBLookup issues)
+       y=460
+       ══════════════════════════════════════════════════════════ -->
+
+  <!-- Main stream: products -->
   <transform>
-    <name>Read staging.products</name>
+    <name>Read products</name>
     <type>TableInput</type>
     <description/>
     <distribute>Y</distribute>
@@ -347,14 +328,14 @@
     <copies>1</copies>
     <partitioning><method>none</method><schema_name/></partitioning>
     <connection>DuckDB_Lab1</connection>
-    <sql>SELECT product_id, product_name, category_id, unit_price, cost_price, active_flag FROM staging.products</sql>
+    <sql>SELECT product_id, product_name, category_id, unit_price, cost_price, active_flag FROM staging.products WHERE product_id IS NOT NULL</sql>
     <limit>0</limit>
     <lookup/>
     <execute_each_row>N</execute_each_row>
     <variables_active>N</variables_active>
     <lazy_conversion_active>N</lazy_conversion_active>
     <attributes/>
-    <GUI><xloc>80</xloc><yloc>500</yloc></GUI>
+    <GUI><xloc>80</xloc><yloc>460</yloc></GUI>
   </transform>
 
   <transform>
@@ -375,50 +356,65 @@
       </condition>
     </compare>
     <send_false_to/>
-    <send_true_to>Lookup category</send_true_to>
+    <send_true_to>Lookup category info</send_true_to>
     <attributes/>
-    <GUI><xloc>300</xloc><yloc>500</yloc></GUI>
+    <GUI><xloc>280</xloc><yloc>460</yloc></GUI>
   </transform>
 
+  <!-- Lookup stream: categories (read into memory) -->
   <transform>
-    <name>Lookup category</name>
-    <type>DBLookup</type>
+    <name>Read categories</name>
+    <type>TableInput</type>
     <description/>
     <distribute>Y</distribute>
     <custom_distribution/>
     <copies>1</copies>
     <partitioning><method>none</method><schema_name/></partitioning>
     <connection>DuckDB_Lab1</connection>
-    <cache>Y</cache>
-    <cache_size>0</cache_size>
-    <cache_load_all>Y</cache_load_all>
-    <schema>staging</schema>
-    <table>categories</table>
-    <orderby/>
-    <fail_on_multiple>N</fail_on_multiple>
-    <eat_row_on_failure>N</eat_row_on_failure>
-    <key>
-      <name>category_id</name>
-      <field>category_id</field>
-      <condition>=</condition>
-      <name2/>
-    </key>
-    <value>
-      <name>category_name</name>
-      <rename>category_name</rename>
-      <default/>
-      <type>String</type>
-      <trim_type>none</trim_type>
-    </value>
-    <value>
-      <name>department</name>
-      <rename>department</rename>
-      <default/>
-      <type>String</type>
-      <trim_type>none</trim_type>
-    </value>
+    <sql>SELECT category_id, category_name, department FROM staging.categories</sql>
+    <limit>0</limit>
+    <lookup/>
+    <execute_each_row>N</execute_each_row>
+    <variables_active>N</variables_active>
+    <lazy_conversion_active>N</lazy_conversion_active>
     <attributes/>
-    <GUI><xloc>520</xloc><yloc>500</yloc></GUI>
+    <GUI><xloc>280</xloc><yloc>360</yloc></GUI>
+  </transform>
+
+  <!-- StreamLookup: join products with categories on category_id -->
+  <transform>
+    <name>Lookup category info</name>
+    <type>StreamLookup</type>
+    <description/>
+    <distribute>Y</distribute>
+    <custom_distribution/>
+    <copies>1</copies>
+    <partitioning><method>none</method><schema_name/></partitioning>
+    <from>Read categories</from>
+    <input_sorted>N</input_sorted>
+    <preserve_memory>Y</preserve_memory>
+    <sorted_list>N</sorted_list>
+    <integer_pair>N</integer_pair>
+    <lookup>
+      <key>
+        <name>category_id</name>
+        <field>category_id</field>
+      </key>
+      <value>
+        <name>category_name</name>
+        <rename>category_name</rename>
+        <default/>
+        <type>String</type>
+      </value>
+      <value>
+        <name>department</name>
+        <rename>department</rename>
+        <default/>
+        <type>String</type>
+      </value>
+    </lookup>
+    <attributes/>
+    <GUI><xloc>480</xloc><yloc>460</yloc></GUI>
   </transform>
 
   <transform>
@@ -437,29 +433,11 @@
     <increment_by>1</increment_by>
     <max_value>9999999</max_value>
     <attributes/>
-    <GUI><xloc>740</xloc><yloc>500</yloc></GUI>
+    <GUI><xloc>680</xloc><yloc>460</yloc></GUI>
   </transform>
 
   <transform>
-    <name>Add loaded_at product</name>
-    <type>SystemInfo</type>
-    <description/>
-    <distribute>Y</distribute>
-    <custom_distribution/>
-    <copies>1</copies>
-    <partitioning><method>none</method><schema_name/></partitioning>
-    <fields>
-      <field>
-        <name>loaded_at</name>
-        <type>system date (variable)</type>
-      </field>
-    </fields>
-    <attributes/>
-    <GUI><xloc>960</xloc><yloc>500</yloc></GUI>
-  </transform>
-
-  <transform>
-    <name>Select product_dim fields</name>
+    <name>Select product fields</name>
     <type>SelectValues</type>
     <description/>
     <distribute>Y</distribute>
@@ -476,15 +454,14 @@
       <field><name>unit_price</name><rename>unit_price</rename><length>-2</length><precision>-2</precision></field>
       <field><name>cost_price</name><rename>cost_price</rename><length>-2</length><precision>-2</precision></field>
       <field><name>active_flag</name><rename>active_flag</rename><length>-2</length><precision>-2</precision></field>
-      <field><name>loaded_at</name><rename>loaded_at</rename><length>-2</length><precision>-2</precision></field>
     </fields>
     <select_unspecified>N</select_unspecified>
     <attributes/>
-    <GUI><xloc>1180</xloc><yloc>500</yloc></GUI>
+    <GUI><xloc>880</xloc><yloc>460</yloc></GUI>
   </transform>
 
   <transform>
-    <name>Write warehouse.dim_product</name>
+    <name>Write dim_product</name>
     <type>TableOutput</type>
     <description/>
     <distribute>Y</distribute>
@@ -505,15 +482,18 @@
     <table>dim_product</table>
     <tablename_in_field>N</tablename_in_field>
     <tablename_in_table>Y</tablename_in_table>
-    <truncate>Y</truncate>
+    <truncate>N</truncate>
     <use_batch>Y</use_batch>
     <attributes/>
-    <GUI><xloc>1400</xloc><yloc>500</yloc></GUI>
+    <GUI><xloc>1080</xloc><yloc>460</yloc></GUI>
   </transform>
 
-  <!-- ═══ ROW 4 — DIM_CHANNEL y=740 ═══ -->
+  <!-- ══════════════════════════════════════════════════════════
+       DIM_CHANNEL — Hop native transforms
+       y=640
+       ══════════════════════════════════════════════════════════ -->
   <transform>
-    <name>Read distinct channels</name>
+    <name>Read channels</name>
     <type>TableInput</type>
     <description/>
     <distribute>Y</distribute>
@@ -521,55 +501,14 @@
     <copies>1</copies>
     <partitioning><method>none</method><schema_name/></partitioning>
     <connection>DuckDB_Lab1</connection>
-    <sql>SELECT DISTINCT channel FROM staging.orders WHERE channel IS NOT NULL</sql>
+    <sql>SELECT DISTINCT channel FROM staging.orders WHERE channel IS NOT NULL ORDER BY channel</sql>
     <limit>0</limit>
     <lookup/>
     <execute_each_row>N</execute_each_row>
     <variables_active>N</variables_active>
     <lazy_conversion_active>N</lazy_conversion_active>
     <attributes/>
-    <GUI><xloc>80</xloc><yloc>740</yloc></GUI>
-  </transform>
-
-  <transform>
-    <name>Sort channels</name>
-    <type>SortRows</type>
-    <description/>
-    <distribute>Y</distribute>
-    <custom_distribution/>
-    <copies>1</copies>
-    <partitioning><method>none</method><schema_name/></partitioning>
-    <directory>${java.io.tmpdir}</directory>
-    <prefix>out</prefix>
-    <sort_size>1000000</sort_size>
-    <free_memory/>
-    <compress>N</compress>
-    <compress_variable/>
-    <unique_rows>N</unique_rows>
-    <fields>
-      <field><name>channel</name><ascending>Y</ascending><case_sensitive>N</case_sensitive><collator_enabled>N</collator_enabled><collator_strength>0</collator_strength><presorted>N</presorted></field>
-    </fields>
-    <attributes/>
-    <GUI><xloc>300</xloc><yloc>740</yloc></GUI>
-  </transform>
-
-  <transform>
-    <name>Deduplicate channel</name>
-    <type>Unique</type>
-    <description/>
-    <distribute>Y</distribute>
-    <custom_distribution/>
-    <copies>1</copies>
-    <partitioning><method>none</method><schema_name/></partitioning>
-    <count_rows>N</count_rows>
-    <count_field/>
-    <reject_duplicate_row>N</reject_duplicate_row>
-    <error_description/>
-    <fields>
-      <field><name>channel</name><case_insensitive>N</case_insensitive></field>
-    </fields>
-    <attributes/>
-    <GUI><xloc>520</xloc><yloc>740</yloc></GUI>
+    <GUI><xloc>80</xloc><yloc>640</yloc></GUI>
   </transform>
 
   <transform>
@@ -589,7 +528,7 @@
       <field><source_value>Partner</source_value><target_value>Indirect</target_value></field>
     </fields>
     <attributes/>
-    <GUI><xloc>740</xloc><yloc>740</yloc></GUI>
+    <GUI><xloc>280</xloc><yloc>640</yloc></GUI>
   </transform>
 
   <transform>
@@ -608,11 +547,11 @@
     <increment_by>1</increment_by>
     <max_value>9999999</max_value>
     <attributes/>
-    <GUI><xloc>960</xloc><yloc>740</yloc></GUI>
+    <GUI><xloc>480</xloc><yloc>640</yloc></GUI>
   </transform>
 
   <transform>
-    <name>Select channel_dim fields</name>
+    <name>Select channel fields</name>
     <type>SelectValues</type>
     <description/>
     <distribute>Y</distribute>
@@ -626,11 +565,11 @@
     </fields>
     <select_unspecified>N</select_unspecified>
     <attributes/>
-    <GUI><xloc>1180</xloc><yloc>740</yloc></GUI>
+    <GUI><xloc>680</xloc><yloc>640</yloc></GUI>
   </transform>
 
   <transform>
-    <name>Write warehouse.dim_channel</name>
+    <name>Write dim_channel</name>
     <type>TableOutput</type>
     <description/>
     <distribute>Y</distribute>
@@ -651,10 +590,10 @@
     <table>dim_channel</table>
     <tablename_in_field>N</tablename_in_field>
     <tablename_in_table>Y</tablename_in_table>
-    <truncate>Y</truncate>
+    <truncate>N</truncate>
     <use_batch>Y</use_batch>
     <attributes/>
-    <GUI><xloc>1400</xloc><yloc>740</yloc></GUI>
+    <GUI><xloc>880</xloc><yloc>640</yloc></GUI>
   </transform>
 
   <transform_error_handling/>
