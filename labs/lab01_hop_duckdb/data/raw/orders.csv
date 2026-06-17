@@ -1,0 +1,15 @@
+order_id,customer_id,order_date,channel,order_status,city
+1000,1,2025-01-05,Online,Completed,Casablanca
+1001,2,2025-01-07,Store,Completed,Rabat
+1002,3,2025-01-12,Online,Returned,Marrakech
+1003,4,2025-01-15,Partner,Completed,Fes
+1004,5,2025-01-17,Online,Cancelled,Tangier
+1005,6,2025-02-02,Store,Completed,Agadir
+1006,7,2025-02-08,Online,Completed,Casablanca
+1007,8,2025-02-16,Online,Completed,Rabat
+1008,999,2025-02-20,Store,Completed,Unknown
+1009,9,2025-03-03,Partner,Completed,Marrakech
+1010,10,2025-03-10,Online,Completed,Casablanca
+1011,1,2025-03-11,Online,Shipped,Casablanca
+1012,2,2025-03-14,Store,Completed,Rabat
+1013,3,2025-03-21,Online,Completed,Marrakech

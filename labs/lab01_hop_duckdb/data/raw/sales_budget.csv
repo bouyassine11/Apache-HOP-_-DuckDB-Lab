@@ -1,0 +1,13 @@
+budget_id,year,month,category_id,channel,budget_amount,budget_qty
+1,2025,1,10,Online,65000,6
+2,2025,1,10,Store,40000,4
+3,2025,1,20,Online,15000,80
+4,2025,1,20,Store,8000,40
+5,2025,1,30,Online,12000,8
+6,2025,1,40,Online,25000,4
+7,2025,2,10,Online,70000,7
+8,2025,2,10,Store,42000,4
+9,2025,2,20,Online,16000,85
+10,2025,2,30,Online,13000,9
+11,2025,3,10,Online,72000,7
+12,2025,3,20,Online,17000,90

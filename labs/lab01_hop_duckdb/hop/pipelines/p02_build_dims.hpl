@@ -1,0 +1,730 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<pipeline>
+  <info>
+    <name>p02_build_dims</name>
+    <name_sync_with_filename>Y</name_sync_with_filename>
+    <description>Build warehouse dimensions from staging using Hop native transforms.</description>
+    <extended_description/>
+    <pipeline_version/>
+    <pipeline_type>Normal</pipeline_type>
+    <parameters/>
+    <capture_transform_performance>N</capture_transform_performance>
+    <transform_performance_capturing_delay>1000</transform_performance_capturing_delay>
+    <transform_performance_capturing_size_limit/>
+    <created_user/>
+    <created_date>2026/06/17 00:00:00.000</created_date>
+    <modified_user/>
+    <modified_date>2026/06/17 00:00:00.000</modified_date>
+  </info>
+  <notepads>
+    <notepad>
+      <note>ROW 1 — dim_date (ExecSql calendar)</note>
+      <xloc>80</xloc><yloc>60</yloc><width>240</width><heigth>20</heigth>
+      <fontname>Arial</fontname><fontsize>10</fontsize><fontbold>N</fontbold><fontitalic>N</fontitalic>
+      <fontcolorred>0</fontcolorred><fontcolorgreen>0</fontcolorgreen><fontcolorblue>0</fontcolorblue>
+      <backgroundcolorred>255</backgroundcolorred><backgroundcolorgreen>255</backgroundcolorgreen><backgroundcolorblue>204</backgroundcolorblue>
+      <bordercolorred>128</bordercolorred><bordercolorgreen>128</bordercolorgreen><bordercolorblue>128</bordercolorblue>
+      <drawshadow>Y</drawshadow>
+    </notepad>
+    <notepad>
+      <note>ROW 2 — dim_customer</note>
+      <xloc>80</xloc><yloc>220</yloc><width>160</width><heigth>20</heigth>
+      <fontname>Arial</fontname><fontsize>10</fontsize><fontbold>N</fontbold><fontitalic>N</fontitalic>
+      <fontcolorred>0</fontcolorred><fontcolorgreen>0</fontcolorgreen><fontcolorblue>0</fontcolorblue>
+      <backgroundcolorred>255</backgroundcolorred><backgroundcolorgreen>255</backgroundcolorgreen><backgroundcolorblue>204</backgroundcolorblue>
+      <bordercolorred>128</bordercolorred><bordercolorgreen>128</bordercolorgreen><bordercolorblue>128</bordercolorblue>
+      <drawshadow>Y</drawshadow>
+    </notepad>
+    <notepad>
+      <note>ROW 3 — dim_product</note>
+      <xloc>80</xloc><yloc>620</yloc><width>160</width><heigth>20</heigth>
+      <fontname>Arial</fontname><fontsize>10</fontsize><fontbold>N</fontbold><fontitalic>N</fontitalic>
+      <fontcolorred>0</fontcolorred><fontcolorgreen>0</fontcolorgreen><fontcolorblue>0</fontcolorblue>
+      <backgroundcolorred>255</backgroundcolorred><backgroundcolorgreen>255</backgroundcolorgreen><backgroundcolorblue>204</backgroundcolorblue>
+      <bordercolorred>128</bordercolorred><bordercolorgreen>128</bordercolorgreen><bordercolorblue>128</bordercolorblue>
+      <drawshadow>Y</drawshadow>
+    </notepad>
+    <notepad>
+      <note>ROW 4 — dim_channel</note>
+      <xloc>80</xloc><yloc>860</yloc><width>160</width><heigth>20</heigth>
+      <fontname>Arial</fontname><fontsize>10</fontsize><fontbold>N</fontbold><fontitalic>N</fontitalic>
+      <fontcolorred>0</fontcolorred><fontcolorgreen>0</fontcolorgreen><fontcolorblue>0</fontcolorblue>
+      <backgroundcolorred>255</backgroundcolorred><backgroundcolorgreen>255</backgroundcolorgreen><backgroundcolorblue>204</backgroundcolorblue>
+      <bordercolorred>128</bordercolorred><bordercolorgreen>128</bordercolorgreen><bordercolorblue>128</bordercolorblue>
+      <drawshadow>Y</drawshadow>
+    </notepad>
+  </notepads>
+  <order>
+    <!-- dim_date -->
+    <hop><from>Truncate dim_date</from><to>Generate dim_date calendar</to><enabled>Y</enabled></hop>
+    <!-- dim_customer -->
+    <hop><from>Read staging.customers</from><to>Filter valid customers</to><enabled>Y</enabled></hop>
+    <hop><from>Filter valid customers</from><to>Sort customers</to><enabled>Y</enabled></hop>
+    <hop><from>Sort customers</from><to>Deduplicate customer_id</to><enabled>Y</enabled></hop>
+    <hop><from>Deduplicate customer_id</from><to>Normalize city</to><enabled>Y</enabled></hop>
+    <hop><from>Normalize city</from><to>Default email</to><enabled>Y</enabled></hop>
+    <hop><from>Default email</from><to>Add customer_key</to><enabled>Y</enabled></hop>
+    <hop><from>Add customer_key</from><to>Add loaded_at customer</to><enabled>Y</enabled></hop>
+    <hop><from>Add loaded_at customer</from><to>Select customer_dim fields</to><enabled>Y</enabled></hop>
+    <hop><from>Select customer_dim fields</from><to>Write warehouse.dim_customer</to><enabled>Y</enabled></hop>
+    <!-- dim_product -->
+    <hop><from>Read staging.products</from><to>Filter valid products</to><enabled>Y</enabled></hop>
+    <hop><from>Filter valid products</from><to>Lookup category</to><enabled>Y</enabled></hop>
+    <hop><from>Lookup category</from><to>Add product_key</to><enabled>Y</enabled></hop>
+    <hop><from>Add product_key</from><to>Add loaded_at product</to><enabled>Y</enabled></hop>
+    <hop><from>Add loaded_at product</from><to>Select product_dim fields</to><enabled>Y</enabled></hop>
+    <hop><from>Select product_dim fields</from><to>Write warehouse.dim_product</to><enabled>Y</enabled></hop>
+    <!-- dim_channel -->
+    <hop><from>Read distinct channels</from><to>Sort channels</to><enabled>Y</enabled></hop>
+    <hop><from>Sort channels</from><to>Deduplicate channel</to><enabled>Y</enabled></hop>
+    <hop><from>Deduplicate channel</from><to>Map channel_type</to><enabled>Y</enabled></hop>
+    <hop><from>Map channel_type</from><to>Add channel_key</to><enabled>Y</enabled></hop>
+    <hop><from>Add channel_key</from><to>Select channel_dim fields</to><enabled>Y</enabled></hop>
+    <hop><from>Select channel_dim fields</from><to>Write warehouse.dim_channel</to><enabled>Y</enabled></hop>
+  </order>
+
+  <!-- ═══════════════════════════════════════════════════════════════
+       ROW 1 — DIM_DATE  (y=100)
+       ═══════════════════════════════════════════════════════════════ -->
+  <transform>
+    <name>Truncate dim_date</name>
+    <type>ExecSql</type>
+    <description/>
+    <distribute>Y</distribute>
+    <custom_distribution/>
+    <copies>1</copies>
+    <partitioning><method>none</method><schema_name/></partitioning>
+    <connection>DuckDB_Lab1</connection>
+    <execute_each_row>N</execute_each_row>
+    <single_statement>Y</single_statement>
+    <replace_variables>N</replace_variables>
+    <quoting_strings>N</quoting_strings>
+    <sql>TRUNCATE warehouse.dim_date;</sql>
+    <attributes/>
+    <GUI><xloc>240</xloc><yloc>100</yloc></GUI>
+  </transform>
+
+  <transform>
+    <name>Generate dim_date calendar</name>
+    <type>ExecSql</type>
+    <description/>
+    <distribute>Y</distribute>
+    <custom_distribution/>
+    <copies>1</copies>
+    <partitioning><method>none</method><schema_name/></partitioning>
+    <connection>DuckDB_Lab1</connection>
+    <execute_each_row>N</execute_each_row>
+    <single_statement>Y</single_statement>
+    <replace_variables>N</replace_variables>
+    <quoting_strings>N</quoting_strings>
+    <sql>INSERT INTO warehouse.dim_date
+    (date_key, date_actual, year, quarter, month_num, month_name,
+     day_num, day_name, day_of_week, is_weekend, season)
+SELECT
+    YEAR(d.dt)*10000 + MONTH(d.dt)*100 + DAY(d.dt)   AS date_key,
+    d.dt                                               AS date_actual,
+    YEAR(d.dt)                                         AS year,
+    QUARTER(d.dt)                                      AS quarter,
+    MONTH(d.dt)                                        AS month_num,
+    MONTHNAME(d.dt)                                    AS month_name,
+    DAY(d.dt)                                          AS day_num,
+    DAYNAME(d.dt)                                      AS day_name,
+    DAYOFWEEK(d.dt)                                    AS day_of_week,
+    DAYOFWEEK(d.dt) IN (0, 6)                          AS is_weekend,
+    CASE
+        WHEN MONTH(d.dt) IN (12,1,2) THEN &apos;Winter&apos;
+        WHEN MONTH(d.dt) IN (3,4,5)  THEN &apos;Spring&apos;
+        WHEN MONTH(d.dt) IN (6,7,8)  THEN &apos;Summer&apos;
+        ELSE &apos;Autumn&apos;
+    END                                                AS season
+FROM (
+    SELECT UNNEST(
+        GENERATE_SERIES(DATE &apos;2024-01-01&apos;, DATE &apos;2026-12-31&apos;, INTERVAL &apos;1 day&apos;)
+    ) AS dt
+) d;</sql>
+    <attributes/>
+    <GUI><xloc>460</xloc><yloc>100</yloc></GUI>
+  </transform>
+
+  <!-- ═══════════════════════════════════════════════════════════════
+       ROW 2 — DIM_CUSTOMER  (y=260 .. 560)
+       ═══════════════════════════════════════════════════════════════ -->
+  <transform>
+    <name>Read staging.customers</name>
+    <type>TableInput</type>
+    <description/>
+    <distribute>Y</distribute>
+    <custom_distribution/>
+    <copies>1</copies>
+    <partitioning><method>none</method><schema_name/></partitioning>
+    <connection>DuckDB_Lab1</connection>
+    <sql>SELECT customer_id, customer_name, email, city, country, signup_date, segment FROM staging.customers</sql>
+    <limit>0</limit>
+    <lookup/>
+    <execute_each_row>N</execute_each_row>
+    <variables_active>N</variables_active>
+    <lazy_conversion_active>N</lazy_conversion_active>
+    <attributes/>
+    <GUI><xloc>240</xloc><yloc>260</yloc></GUI>
+  </transform>
+
+  <transform>
+    <name>Filter valid customers</name>
+    <type>FilterRows</type>
+    <description/>
+    <distribute>Y</distribute>
+    <custom_distribution/>
+    <copies>1</copies>
+    <partitioning><method>none</method><schema_name/></partitioning>
+    <compare>
+      <condition>
+        <conditions>
+          <condition>
+            <conditions/>
+            <function>IS NOT NULL</function>
+            <leftvalue>customer_id</leftvalue>
+            <negated>N</negated>
+            <operator>-</operator>
+          </condition>
+          <condition>
+            <conditions/>
+            <function>IS NOT NULL</function>
+            <leftvalue>customer_name</leftvalue>
+            <negated>N</negated>
+            <operator>AND</operator>
+          </condition>
+        </conditions>
+        <function>TRUE</function>
+        <leftvalue/>
+        <negated>N</negated>
+        <operator>-</operator>
+      </condition>
+    </compare>
+    <send_false_to/>
+    <send_true_to>Sort customers</send_true_to>
+    <attributes/>
+    <GUI><xloc>460</xloc><yloc>260</yloc></GUI>
+  </transform>
+
+  <transform>
+    <name>Sort customers</name>
+    <type>SortRows</type>
+    <description/>
+    <distribute>Y</distribute>
+    <custom_distribution/>
+    <copies>1</copies>
+    <partitioning><method>none</method><schema_name/></partitioning>
+    <sort_size>1000000</sort_size>
+    <free_memory_treshold>25</free_memory_treshold>
+    <compress>N</compress>
+    <compress_variable/>
+    <unique_rows>N</unique_rows>
+    <fields>
+      <field><name>customer_id</name><ascending>Y</ascending><case_sensitive>N</case_sensitive><collator_enabled>N</collator_enabled><collator_strength>0</collator_strength><pre_sort_present>N</pre_sort_present></field>
+      <field><name>signup_date</name><ascending>Y</ascending><case_sensitive>N</case_sensitive><collator_enabled>N</collator_enabled><collator_strength>0</collator_strength><pre_sort_present>N</pre_sort_present></field>
+    </fields>
+    <attributes/>
+    <GUI><xloc>680</xloc><yloc>260</yloc></GUI>
+  </transform>
+
+  <transform>
+    <name>Deduplicate customer_id</name>
+    <type>UniqueRows</type>
+    <description/>
+    <distribute>Y</distribute>
+    <custom_distribution/>
+    <copies>1</copies>
+    <partitioning><method>none</method><schema_name/></partitioning>
+    <count_rows>N</count_rows>
+    <count_field/>
+    <reject_duplicate_row>N</reject_duplicate_row>
+    <error_description/>
+    <fields>
+      <field><name>customer_id</name><case_insensitive>N</case_insensitive></field>
+    </fields>
+    <attributes/>
+    <GUI><xloc>900</xloc><yloc>260</yloc></GUI>
+  </transform>
+
+  <transform>
+    <name>Normalize city</name>
+    <type>ValueMapper</type>
+    <description/>
+    <distribute>Y</distribute>
+    <custom_distribution/>
+    <copies>1</copies>
+    <partitioning><method>none</method><schema_name/></partitioning>
+    <field_to_use>city</field_to_use>
+    <target_field>city</target_field>
+    <non_match_default>Unknown</non_match_default>
+    <fields>
+      <field><source_value>Casablanca</source_value><target_value>Casablanca</target_value></field>
+      <field><source_value>casablanca</source_value><target_value>Casablanca</target_value></field>
+      <field><source_value>CASABLANCA</source_value><target_value>Casablanca</target_value></field>
+      <field><source_value>Rabat</source_value><target_value>Rabat</target_value></field>
+      <field><source_value>rabat</source_value><target_value>Rabat</target_value></field>
+      <field><source_value>RABAT</source_value><target_value>Rabat</target_value></field>
+      <field><source_value>Marrakech</source_value><target_value>Marrakech</target_value></field>
+      <field><source_value>marrakech</source_value><target_value>Marrakech</target_value></field>
+      <field><source_value>MARRAKECH</source_value><target_value>Marrakech</target_value></field>
+      <field><source_value>Fes</source_value><target_value>Fes</target_value></field>
+      <field><source_value>fes</source_value><target_value>Fes</target_value></field>
+      <field><source_value>FES</source_value><target_value>Fes</target_value></field>
+      <field><source_value>Fez</source_value><target_value>Fes</target_value></field>
+      <field><source_value>fez</source_value><target_value>Fes</target_value></field>
+      <field><source_value>FEZ</source_value><target_value>Fes</target_value></field>
+      <field><source_value>Tangier</source_value><target_value>Tangier</target_value></field>
+      <field><source_value>tangier</source_value><target_value>Tangier</target_value></field>
+      <field><source_value>TANGIER</source_value><target_value>Tangier</target_value></field>
+      <field><source_value>Tanger</source_value><target_value>Tangier</target_value></field>
+      <field><source_value>tanger</source_value><target_value>Tangier</target_value></field>
+      <field><source_value>TANGER</source_value><target_value>Tangier</target_value></field>
+      <field><source_value>Agadir</source_value><target_value>Agadir</target_value></field>
+      <field><source_value>agadir</source_value><target_value>Agadir</target_value></field>
+      <field><source_value>AGADIR</source_value><target_value>Agadir</target_value></field>
+    </fields>
+    <attributes/>
+    <GUI><xloc>1120</xloc><yloc>260</yloc></GUI>
+  </transform>
+
+  <transform>
+    <name>Default email</name>
+    <type>IfNull</type>
+    <description/>
+    <distribute>Y</distribute>
+    <custom_distribution/>
+    <copies>1</copies>
+    <partitioning><method>none</method><schema_name/></partitioning>
+    <typemapping/>
+    <fields>
+      <field>
+        <name>email</name>
+        <value>unknown@unknown.com</value>
+        <mask/>
+        <set_type>N</set_type>
+        <type/>
+      </field>
+    </fields>
+    <select_fields>Y</select_fields>
+    <select_values_type>N</select_values_type>
+    <attributes/>
+    <GUI><xloc>1340</xloc><yloc>260</yloc></GUI>
+  </transform>
+
+  <transform>
+    <name>Add customer_key</name>
+    <type>AddSequence</type>
+    <description/>
+    <distribute>Y</distribute>
+    <custom_distribution/>
+    <copies>1</copies>
+    <partitioning><method>none</method><schema_name/></partitioning>
+    <valuename>customer_key</valuename>
+    <use_database>N</use_database>
+    <connection/>
+    <schema/>
+    <sequence/>
+    <start_at>1</start_at>
+    <increment_by>1</increment_by>
+    <max_value>9999999</max_value>
+    <attributes/>
+    <GUI><xloc>1560</xloc><yloc>260</yloc></GUI>
+  </transform>
+
+  <transform>
+    <name>Add loaded_at customer</name>
+    <type>SystemData</type>
+    <description/>
+    <distribute>Y</distribute>
+    <custom_distribution/>
+    <copies>1</copies>
+    <partitioning><method>none</method><schema_name/></partitioning>
+    <fields>
+      <field>
+        <name>loaded_at</name>
+        <type>system date (variable)</type>
+      </field>
+    </fields>
+    <attributes/>
+    <GUI><xloc>1780</xloc><yloc>260</yloc></GUI>
+  </transform>
+
+  <transform>
+    <name>Select customer_dim fields</name>
+    <type>SelectValues</type>
+    <description/>
+    <distribute>Y</distribute>
+    <custom_distribution/>
+    <copies>1</copies>
+    <partitioning><method>none</method><schema_name/></partitioning>
+    <fields>
+      <field><name>customer_key</name><rename>customer_key</rename><length>-2</length><precision>-2</precision></field>
+      <field><name>customer_id</name><rename>customer_id_src</rename><length>-2</length><precision>-2</precision></field>
+      <field><name>customer_name</name><rename>customer_name</rename><length>-2</length><precision>-2</precision></field>
+      <field><name>email</name><rename>email</rename><length>-2</length><precision>-2</precision></field>
+      <field><name>city</name><rename>city</rename><length>-2</length><precision>-2</precision></field>
+      <field><name>country</name><rename>country</rename><length>-2</length><precision>-2</precision></field>
+      <field><name>signup_date</name><rename>signup_date</rename><length>-2</length><precision>-2</precision></field>
+      <field><name>segment</name><rename>segment</rename><length>-2</length><precision>-2</precision></field>
+      <field><name>loaded_at</name><rename>loaded_at</rename><length>-2</length><precision>-2</precision></field>
+    </fields>
+    <select_unspecified>N</select_unspecified>
+    <attributes/>
+    <GUI><xloc>2000</xloc><yloc>260</yloc></GUI>
+  </transform>
+
+  <transform>
+    <name>Write warehouse.dim_customer</name>
+    <type>TableOutput</type>
+    <description/>
+    <distribute>Y</distribute>
+    <custom_distribution/>
+    <copies>1</copies>
+    <partitioning><method>none</method><schema_name/></partitioning>
+    <commit>1000</commit>
+    <connection>DuckDB_Lab1</connection>
+    <fields/>
+    <ignore_errors>N</ignore_errors>
+    <only_when_have_rows>N</only_when_have_rows>
+    <partitioning_daily>N</partitioning_daily>
+    <partitioning_enabled>N</partitioning_enabled>
+    <partitioning_monthly>Y</partitioning_monthly>
+    <return_keys>N</return_keys>
+    <schema>warehouse</schema>
+    <specify_fields>N</specify_fields>
+    <table>dim_customer</table>
+    <tablename_in_field>N</tablename_in_field>
+    <tablename_in_table>Y</tablename_in_table>
+    <truncate>Y</truncate>
+    <use_batch>Y</use_batch>
+    <attributes/>
+    <GUI><xloc>2220</xloc><yloc>260</yloc></GUI>
+  </transform>
+
+  <!-- ═══════════════════════════════════════════════════════════════
+       ROW 3 — DIM_PRODUCT  (y=660)
+       ═══════════════════════════════════════════════════════════════ -->
+  <transform>
+    <name>Read staging.products</name>
+    <type>TableInput</type>
+    <description/>
+    <distribute>Y</distribute>
+    <custom_distribution/>
+    <copies>1</copies>
+    <partitioning><method>none</method><schema_name/></partitioning>
+    <connection>DuckDB_Lab1</connection>
+    <sql>SELECT product_id, product_name, category_id, unit_price, cost_price, active_flag FROM staging.products</sql>
+    <limit>0</limit>
+    <lookup/>
+    <execute_each_row>N</execute_each_row>
+    <variables_active>N</variables_active>
+    <lazy_conversion_active>N</lazy_conversion_active>
+    <attributes/>
+    <GUI><xloc>240</xloc><yloc>660</yloc></GUI>
+  </transform>
+
+  <transform>
+    <name>Filter valid products</name>
+    <type>FilterRows</type>
+    <description/>
+    <distribute>Y</distribute>
+    <custom_distribution/>
+    <copies>1</copies>
+    <partitioning><method>none</method><schema_name/></partitioning>
+    <compare>
+      <condition>
+        <conditions/>
+        <function>IS NOT NULL</function>
+        <leftvalue>product_id</leftvalue>
+        <negated>N</negated>
+        <operator>-</operator>
+      </condition>
+    </compare>
+    <send_false_to/>
+    <send_true_to>Lookup category</send_true_to>
+    <attributes/>
+    <GUI><xloc>460</xloc><yloc>660</yloc></GUI>
+  </transform>
+
+  <transform>
+    <name>Lookup category</name>
+    <type>DatabaseLookup</type>
+    <description/>
+    <distribute>Y</distribute>
+    <custom_distribution/>
+    <copies>1</copies>
+    <partitioning><method>none</method><schema_name/></partitioning>
+    <connection>DuckDB_Lab1</connection>
+    <lookup>
+      <schema>staging</schema>
+      <table>categories</table>
+      <orderby/>
+      <fail_on_multiple>N</fail_on_multiple>
+      <eat_row_on_failure>N</eat_row_on_failure>
+      <cache>Y</cache>
+      <cache_size>0</cache_size>
+      <cache_load_all>Y</cache_load_all>
+      <key>
+        <name>category_id</name>
+        <field>category_id</field>
+        <condition>=</condition>
+        <name2/>
+      </key>
+      <value>
+        <name>category_name</name>
+        <rename>category_name</rename>
+        <default/>
+        <type>String</type>
+      </value>
+      <value>
+        <name>department</name>
+        <rename>department</rename>
+        <default/>
+        <type>String</type>
+      </value>
+    </lookup>
+    <attributes/>
+    <GUI><xloc>680</xloc><yloc>660</yloc></GUI>
+  </transform>
+
+  <transform>
+    <name>Add product_key</name>
+    <type>AddSequence</type>
+    <description/>
+    <distribute>Y</distribute>
+    <custom_distribution/>
+    <copies>1</copies>
+    <partitioning><method>none</method><schema_name/></partitioning>
+    <valuename>product_key</valuename>
+    <use_database>N</use_database>
+    <connection/>
+    <schema/>
+    <sequence/>
+    <start_at>1</start_at>
+    <increment_by>1</increment_by>
+    <max_value>9999999</max_value>
+    <attributes/>
+    <GUI><xloc>900</xloc><yloc>660</yloc></GUI>
+  </transform>
+
+  <transform>
+    <name>Add loaded_at product</name>
+    <type>SystemData</type>
+    <description/>
+    <distribute>Y</distribute>
+    <custom_distribution/>
+    <copies>1</copies>
+    <partitioning><method>none</method><schema_name/></partitioning>
+    <fields>
+      <field>
+        <name>loaded_at</name>
+        <type>system date (variable)</type>
+      </field>
+    </fields>
+    <attributes/>
+    <GUI><xloc>1120</xloc><yloc>660</yloc></GUI>
+  </transform>
+
+  <transform>
+    <name>Select product_dim fields</name>
+    <type>SelectValues</type>
+    <description/>
+    <distribute>Y</distribute>
+    <custom_distribution/>
+    <copies>1</copies>
+    <partitioning><method>none</method><schema_name/></partitioning>
+    <fields>
+      <field><name>product_key</name><rename>product_key</rename><length>-2</length><precision>-2</precision></field>
+      <field><name>product_id</name><rename>product_id_src</rename><length>-2</length><precision>-2</precision></field>
+      <field><name>product_name</name><rename>product_name</rename><length>-2</length><precision>-2</precision></field>
+      <field><name>category_id</name><rename>category_id</rename><length>-2</length><precision>-2</precision></field>
+      <field><name>category_name</name><rename>category_name</rename><length>-2</length><precision>-2</precision></field>
+      <field><name>department</name><rename>department</rename><length>-2</length><precision>-2</precision></field>
+      <field><name>unit_price</name><rename>unit_price</rename><length>-2</length><precision>-2</precision></field>
+      <field><name>cost_price</name><rename>cost_price</rename><length>-2</length><precision>-2</precision></field>
+      <field><name>active_flag</name><rename>active_flag</rename><length>-2</length><precision>-2</precision></field>
+      <field><name>loaded_at</name><rename>loaded_at</rename><length>-2</length><precision>-2</precision></field>
+    </fields>
+    <select_unspecified>N</select_unspecified>
+    <attributes/>
+    <GUI><xloc>1340</xloc><yloc>660</yloc></GUI>
+  </transform>
+
+  <transform>
+    <name>Write warehouse.dim_product</name>
+    <type>TableOutput</type>
+    <description/>
+    <distribute>Y</distribute>
+    <custom_distribution/>
+    <copies>1</copies>
+    <partitioning><method>none</method><schema_name/></partitioning>
+    <commit>1000</commit>
+    <connection>DuckDB_Lab1</connection>
+    <fields/>
+    <ignore_errors>N</ignore_errors>
+    <only_when_have_rows>N</only_when_have_rows>
+    <partitioning_daily>N</partitioning_daily>
+    <partitioning_enabled>N</partitioning_enabled>
+    <partitioning_monthly>Y</partitioning_monthly>
+    <return_keys>N</return_keys>
+    <schema>warehouse</schema>
+    <specify_fields>N</specify_fields>
+    <table>dim_product</table>
+    <tablename_in_field>N</tablename_in_field>
+    <tablename_in_table>Y</tablename_in_table>
+    <truncate>Y</truncate>
+    <use_batch>Y</use_batch>
+    <attributes/>
+    <GUI><xloc>1560</xloc><yloc>660</yloc></GUI>
+  </transform>
+
+  <!-- ═══════════════════════════════════════════════════════════════
+       ROW 4 — DIM_CHANNEL  (y=900)
+       ═══════════════════════════════════════════════════════════════ -->
+  <transform>
+    <name>Read distinct channels</name>
+    <type>TableInput</type>
+    <description/>
+    <distribute>Y</distribute>
+    <custom_distribution/>
+    <copies>1</copies>
+    <partitioning><method>none</method><schema_name/></partitioning>
+    <connection>DuckDB_Lab1</connection>
+    <sql>SELECT DISTINCT channel FROM staging.orders WHERE channel IS NOT NULL</sql>
+    <limit>0</limit>
+    <lookup/>
+    <execute_each_row>N</execute_each_row>
+    <variables_active>N</variables_active>
+    <lazy_conversion_active>N</lazy_conversion_active>
+    <attributes/>
+    <GUI><xloc>240</xloc><yloc>900</yloc></GUI>
+  </transform>
+
+  <transform>
+    <name>Sort channels</name>
+    <type>SortRows</type>
+    <description/>
+    <distribute>Y</distribute>
+    <custom_distribution/>
+    <copies>1</copies>
+    <partitioning><method>none</method><schema_name/></partitioning>
+    <sort_size>1000000</sort_size>
+    <free_memory_treshold>25</free_memory_treshold>
+    <compress>N</compress>
+    <compress_variable/>
+    <unique_rows>N</unique_rows>
+    <fields>
+      <field><name>channel</name><ascending>Y</ascending><case_sensitive>N</case_sensitive><collator_enabled>N</collator_enabled><collator_strength>0</collator_strength><pre_sort_present>N</pre_sort_present></field>
+    </fields>
+    <attributes/>
+    <GUI><xloc>460</xloc><yloc>900</yloc></GUI>
+  </transform>
+
+  <transform>
+    <name>Deduplicate channel</name>
+    <type>UniqueRows</type>
+    <description/>
+    <distribute>Y</distribute>
+    <custom_distribution/>
+    <copies>1</copies>
+    <partitioning><method>none</method><schema_name/></partitioning>
+    <count_rows>N</count_rows>
+    <count_field/>
+    <reject_duplicate_row>N</reject_duplicate_row>
+    <error_description/>
+    <fields>
+      <field><name>channel</name><case_insensitive>N</case_insensitive></field>
+    </fields>
+    <attributes/>
+    <GUI><xloc>680</xloc><yloc>900</yloc></GUI>
+  </transform>
+
+  <transform>
+    <name>Map channel_type</name>
+    <type>ValueMapper</type>
+    <description/>
+    <distribute>Y</distribute>
+    <custom_distribution/>
+    <copies>1</copies>
+    <partitioning><method>none</method><schema_name/></partitioning>
+    <field_to_use>channel</field_to_use>
+    <target_field>channel_type</target_field>
+    <non_match_default>Unknown</non_match_default>
+    <fields>
+      <field><source_value>Online</source_value><target_value>Digital</target_value></field>
+      <field><source_value>Store</source_value><target_value>Physical</target_value></field>
+      <field><source_value>Partner</source_value><target_value>Indirect</target_value></field>
+    </fields>
+    <attributes/>
+    <GUI><xloc>900</xloc><yloc>900</yloc></GUI>
+  </transform>
+
+  <transform>
+    <name>Add channel_key</name>
+    <type>AddSequence</type>
+    <description/>
+    <distribute>Y</distribute>
+    <custom_distribution/>
+    <copies>1</copies>
+    <partitioning><method>none</method><schema_name/></partitioning>
+    <valuename>channel_key</valuename>
+    <use_database>N</use_database>
+    <connection/>
+    <schema/>
+    <sequence/>
+    <start_at>1</start_at>
+    <increment_by>1</increment_by>
+    <max_value>9999999</max_value>
+    <attributes/>
+    <GUI><xloc>1120</xloc><yloc>900</yloc></GUI>
+  </transform>
+
+  <transform>
+    <name>Select channel_dim fields</name>
+    <type>SelectValues</type>
+    <description/>
+    <distribute>Y</distribute>
+    <custom_distribution/>
+    <copies>1</copies>
+    <partitioning><method>none</method><schema_name/></partitioning>
+    <fields>
+      <field><name>channel_key</name><rename>channel_key</rename><length>-2</length><precision>-2</precision></field>
+      <field><name>channel</name><rename>channel_name</rename><length>-2</length><precision>-2</precision></field>
+      <field><name>channel_type</name><rename>channel_type</rename><length>-2</length><precision>-2</precision></field>
+    </fields>
+    <select_unspecified>N</select_unspecified>
+    <attributes/>
+    <GUI><xloc>1340</xloc><yloc>900</yloc></GUI>
+  </transform>
+
+  <transform>
+    <name>Write warehouse.dim_channel</name>
+    <type>TableOutput</type>
+    <description/>
+    <distribute>Y</distribute>
+    <custom_distribution/>
+    <copies>1</copies>
+    <partitioning><method>none</method><schema_name/></partitioning>
+    <commit>1000</commit>
+    <connection>DuckDB_Lab1</connection>
+    <fields/>
+    <ignore_errors>N</ignore_errors>
+    <only_when_have_rows>N</only_when_have_rows>
+    <partitioning_daily>N</partitioning_daily>
+    <partitioning_enabled>N</partitioning_enabled>
+    <partitioning_monthly>Y</partitioning_monthly>
+    <return_keys>N</return_keys>
+    <schema>warehouse</schema>
+    <specify_fields>N</specify_fields>
+    <table>dim_channel</table>
+    <tablename_in_field>N</tablename_in_field>
+    <tablename_in_table>Y</tablename_in_table>
+    <truncate>Y</truncate>
+    <use_batch>Y</use_batch>
+    <attributes/>
+    <GUI><xloc>1560</xloc><yloc>900</yloc></GUI>
+  </transform>
+
+  <transform_error_handling/>
+  <attributes/>
+</pipeline>

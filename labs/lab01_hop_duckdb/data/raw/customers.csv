@@ -1,0 +1,12 @@
+customer_id,customer_name,email,city,country,signup_date,segment
+1,Amina Haddad,amina.haddad@example.com,Casablanca,MA,2024-01-12,Retail
+2,Youssef El Amrani,youssef.amrani@example.com,Rabat,MA,2024-02-03,Retail
+3,Salma Benali,salma.benali@example.com,Marrakech,MA,2024-02-18,Retail
+4,Omar Tazi,omar.tazi@example.com,Fes,MA,2024-03-22,SMB
+5,Nora Alaoui,nora.alaoui@example.com,Tangier,MA,2024-04-02,Retail
+6,Mehdi Berrada,mehdi.berrada@example.com,Agadir,MA,2024-04-11,SMB
+7,Imane Idrissi,,Casablanca,MA,2024-05-07,Retail
+8,Karim Mansouri,karim.mansouri@example.com,Rabat,MA,2024-05-21,Enterprise
+9,Leila Chraibi,leila.chraibi@example.com,Marrakech,MA,2024-06-13,Retail
+10,Hicham Naciri,hicham.naciri@example.com,Casablanca,MA,2024-07-01,SMB
+10,Hicham Naciri Duplicate,hicham.duplicate@example.com,Casablanca,MA,2024-07-01,SMB

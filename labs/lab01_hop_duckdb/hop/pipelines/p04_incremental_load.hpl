@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<pipeline>
+  <info>
+    <name>p04_incremental_load</name>
+    <name_sync_with_filename>Y</name_sync_with_filename>
+    <description>Skeleton for Hop-native incremental CSV-to-staging loads using watermarks and lookup-based deduplication.</description>
+    <pipeline_type>Normal</pipeline_type>
+    <capture_transform_performance>N</capture_transform_performance>
+  </info>
+
+  <order>
+    <hop><from>Start</from><to>Load April orders with Hop steps</to><enabled>Y</enabled></hop>
+    <hop><from>Load April orders with Hop steps</from><to>Load April order_items with Hop steps</to><enabled>Y</enabled></hop>
+    <hop><from>Load April order_items with Hop steps</from><to>Load April payments with Hop steps</to><enabled>Y</enabled></hop>
+    <hop><from>Load April payments with Hop steps</from><to>Update watermarks</to><enabled>Y</enabled></hop>
+  </order>
+
+  <transform><name>Start</name><type>Dummy</type><distribute>Y</distribute><copies>1</copies><partitioning><method>none</method><schema_name/></partitioning><attributes/><GUI><xloc>64</xloc><yloc>80</yloc></GUI></transform>
+  <transform><name>Load April orders with Hop steps</name><type>Dummy</type><description>CSV Input orders_april.csv, Select Values, Filter Rows order_date greater than watermark, Database Lookup staging.orders, Table Output staging.orders.</description><distribute>Y</distribute><copies>1</copies><partitioning><method>none</method><schema_name/></partitioning><attributes/><GUI><xloc>280</xloc><yloc>80</yloc></GUI></transform>
+  <transform><name>Load April order_items with Hop steps</name><type>Dummy</type><description>CSV Input order_items_april.csv, Select Values, Database Lookup staging.order_items, Table Output staging.order_items.</description><distribute>Y</distribute><copies>1</copies><partitioning><method>none</method><schema_name/></partitioning><attributes/><GUI><xloc>560</xloc><yloc>80</yloc></GUI></transform>
+  <transform><name>Load April payments with Hop steps</name><type>Dummy</type><description>CSV Input payments_april.csv, Select Values, Filter Rows payment_date greater than watermark, Database Lookup staging.payments, Table Output staging.payments.</description><distribute>Y</distribute><copies>1</copies><partitioning><method>none</method><schema_name/></partitioning><attributes/><GUI><xloc>860</xloc><yloc>80</yloc></GUI></transform>
+  <transform><name>Update watermarks</name><type>Dummy</type><description>Use ExecSql or a control-table output only to update control.load_watermark after staging append succeeds.</description><distribute>Y</distribute><copies>1</copies><partitioning><method>none</method><schema_name/></partitioning><attributes/><GUI><xloc>1140</xloc><yloc>80</yloc></GUI></transform>
+
+  <transform_error_handling/>
+  <attributes/>
+</pipeline>

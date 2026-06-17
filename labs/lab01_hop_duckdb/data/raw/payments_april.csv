@@ -1,0 +1,6 @@
+payment_id,order_id,payment_date,payment_method,payment_status,amount
+5015,1015,2025-04-03,Card,Paid,12689
+5016,1016,2025-04-08,Cash,Paid,1390
+5017,1017,2025-04-10,Transfer,Pending,6990
+5018,1018,2025-04-15,Card,Paid,8740
+5019,1019,2025-04-21,Card,Cancelled,0

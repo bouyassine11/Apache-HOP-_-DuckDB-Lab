@@ -1,0 +1,6 @@
+order_id,customer_id,order_date,channel,order_status,city
+1015,1,2025-04-03,Online,Completed,Casablanca
+1016,3,2025-04-07,Store,Completed,Rabat
+1017,5,2025-04-10,Partner,Shipped,Marrakech
+1018,2,2025-04-15,Online,Completed,Casablanca
+1019,4,2025-04-20,Online,Cancelled,Fes
